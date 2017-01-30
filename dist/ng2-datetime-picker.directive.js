@@ -21,10 +21,11 @@ var Ng2DatetimePickerDirective = (function () {
         this.viewContainerRef = viewContainerRef;
         this.parent = parent;
         this.ngModelChange = new core_1.EventEmitter();
+        this.valueChanged = new core_1.EventEmitter();
         /* input element string value is changed */
-        this.valueChanged = function (date) {
-            _this.setElement(date);
-            _this.el.value = _this.getFormattedDateStr();
+        this.inputElValueChanged = function (date) {
+            _this.setInputElDateValue(date);
+            _this.el.value = date.toString();
             if (_this.ctrl) {
                 _this.ctrl.patchValue(_this.el.value);
             }
@@ -33,6 +34,10 @@ var Ng2DatetimePickerDirective = (function () {
                 _this.ngModel = _this.el.value;
                 _this.ngModelChange.emit(_this.ngModel);
             }
+        };
+        this.dateSelected = function (date) {
+            _this.el.tagName === 'INPUT' && _this.inputElValueChanged(date);
+            _this.valueChanged.emit(date);
         };
         this.hideDatetimePicker = function (event) {
             if (_this.componentRef) {
@@ -59,17 +64,20 @@ var Ng2DatetimePickerDirective = (function () {
         };
         this.el = this.viewContainerRef.element.nativeElement;
     }
+    /**
+     * convert defaultValue, minDate, maxDate, minHour, and maxHour to proper types
+     */
     Ng2DatetimePickerDirective.prototype.normalizeInput = function () {
         if (this.defaultValue && typeof this.defaultValue === 'string') {
-            var d = ng2_datetime_1.Ng2Datetime.parse(this.defaultValue);
+            var d = ng2_datetime_1.Ng2Datetime.parseDate(this.defaultValue);
             this.defaultValue = Number.isNaN(d.getTime()) ? new Date() : d;
         }
         if (this.minDate && typeof this.minDate == 'string') {
-            var d = ng2_datetime_1.Ng2Datetime.parse(this.minDate);
+            var d = ng2_datetime_1.Ng2Datetime.parseDate(this.minDate);
             this.minDate = Number.isNaN(d.getTime()) ? new Date() : d;
         }
         if (this.maxDate && typeof this.maxDate == 'string') {
-            var d = ng2_datetime_1.Ng2Datetime.parse(this.minDate);
+            var d = ng2_datetime_1.Ng2Datetime.parseDate(this.minDate);
             this.maxDate = Number.isNaN(d.getTime()) ? new Date() : d;
         }
         if (this.minHour) {
@@ -97,9 +105,6 @@ var Ng2DatetimePickerDirective = (function () {
     };
     Ng2DatetimePickerDirective.prototype.ngOnInit = function () {
         var _this = this;
-        if (this.firstDayOfWeek) {
-            ng2_datetime_1.Ng2Datetime.customFirstDayOfWeek = parseInt(this.firstDayOfWeek);
-        }
         if (this.parent && this.formControlName) {
             if (this.parent["form"]) {
                 this.ctrl = this.parent["form"].get(this.formControlName);
@@ -112,13 +117,13 @@ var Ng2DatetimePickerDirective = (function () {
             }
             if (this.ctrl) {
                 this.sub = this.ctrl.valueChanges.subscribe(function (date) {
-                    _this.setElement(date);
+                    _this.setInputElDateValue(date);
                     _this.updateDatepicker();
                 });
             }
         }
         this.normalizeInput();
-        //wrap this element with a <div> tag, so that we can position dynamic elememnt correctly
+        //wrap this element with a <div> tag, so that we can position dynamic element correctly
         var wrapper = document.createElement("div");
         wrapper.className = 'ng2-datetime-picker-wrapper';
         this.el.parentElement.insertBefore(wrapper, this.el.nextSibling);
@@ -126,28 +131,37 @@ var Ng2DatetimePickerDirective = (function () {
         // add a click listener to document, so that it can hide when others clicked
         document.body.addEventListener('click', this.hideDatetimePicker);
         this.el.addEventListener('keyup', this.keyEventListener);
+        if (this.ngModel && this.ngModel.getTime) {
+            this.ngModel.toString = function () { return ng2_datetime_1.Ng2Datetime.formatDate(_this.ngModel, _this.dateFormat, _this.dateOnly); };
+        }
         setTimeout(function () {
-            _this.valueChanged(_this.el.value);
+            if (_this.el.tagName === 'INPUT') {
+                _this.inputElValueChanged(_this.el.value); //set this.el.dateValue and reformat this.el.value
+            }
             if (_this.ctrl) {
                 _this.ctrl.markAsPristine();
             }
         });
     };
     Ng2DatetimePickerDirective.prototype.ngOnChanges = function (changes) {
+        var _this = this;
         var date;
         if (changes && changes['ngModel']) {
             date = changes['ngModel'].currentValue;
+            if (date && typeof date !== 'string') {
+                date.toString = function () { return ng2_datetime_1.Ng2Datetime.formatDate(date, _this.dateFormat, _this.dateOnly); };
+            }
         }
-        this.setElement(date);
+        this.setInputElDateValue(date);
         this.updateDatepicker();
     };
     Ng2DatetimePickerDirective.prototype.updateDatepicker = function () {
         if (this.componentRef) {
             var component = this.componentRef.instance;
-            component.initDatetime(this.el['dateValue']);
+            component.defaultValue = this.el['dateValue'];
         }
     };
-    Ng2DatetimePickerDirective.prototype.setElement = function (date) {
+    Ng2DatetimePickerDirective.prototype.setInputElDateValue = function (date) {
         if (typeof date === 'string' && date) {
             this.el['dateValue'] = this.getDate(date);
         }
@@ -178,7 +192,8 @@ var Ng2DatetimePickerDirective = (function () {
         this.ng2DatetimePickerEl = this.componentRef.location.nativeElement;
         this.ng2DatetimePickerEl.addEventListener('keyup', this.keyEventListener);
         var component = this.componentRef.instance;
-        component.defaultValue = this.defaultValue;
+        component.defaultValue = this.defaultValue || this.el['dateValue'];
+        component.dateFormat = this.dateFormat;
         component.dateOnly = this.dateOnly;
         component.timeOnly = this.timeOnly;
         component.minuteStep = this.minuteStep;
@@ -187,11 +202,9 @@ var Ng2DatetimePickerDirective = (function () {
         component.minHour = this.minHour;
         component.maxHour = this.maxHour;
         component.disabledDates = this.disabledDates;
-        component.firstDayOfWeek = this.firstDayOfWeek;
-        component.initDatetime(this.el['dateValue']);
         this.styleDatetimePicker();
-        component.changes.subscribe(this.valueChanged);
-        component.closing.subscribe(function () {
+        component.selected$.subscribe(this.dateSelected);
+        component.closing$.subscribe(function () {
             _this.closeOnSelect !== "false" && _this.hideDatetimePicker();
         });
         //Hack not to fire tab keyup event
@@ -230,35 +243,10 @@ var Ng2DatetimePickerDirective = (function () {
         });
     };
     ;
-    /**
-     *  returns toString function of date object
-     */
-    Ng2DatetimePickerDirective.prototype.getFormattedDateStr = function () {
-        if (this.el['dateValue']) {
-            if (this.dateFormat && typeof moment !== 'undefined') {
-                return ng2_datetime_1.Ng2Datetime.momentFormatDate(this.el['dateValue'], this.dateFormat);
-            }
-            else {
-                return ng2_datetime_1.Ng2Datetime.formatDate(this.el['dateValue'], this.dateOnly);
-            }
-        }
-        else {
-            return null;
-        }
-    };
     Ng2DatetimePickerDirective.prototype.getDate = function (arg) {
-        var date;
+        var date = arg;
         if (typeof arg === 'string') {
-            if (this.dateFormat && typeof moment !== 'undefined') {
-                date = ng2_datetime_1.Ng2Datetime.momentParse(arg, this.dateFormat);
-            }
-            else {
-                //remove timezone and respect day light saving time
-                date = ng2_datetime_1.Ng2Datetime.parse(arg);
-            }
-        }
-        else {
-            date = arg;
+            date = ng2_datetime_1.Ng2Datetime.parseDate(arg, this.parseFormat, this.dateFormat);
         }
         return date;
     };
@@ -280,10 +268,10 @@ var Ng2DatetimePickerDirective = (function () {
     ];
     Ng2DatetimePickerDirective.propDecorators = {
         'dateFormat': [{ type: core_1.Input, args: ['date-format',] },],
+        'parseFormat': [{ type: core_1.Input, args: ['parse-format',] },],
         'dateOnly': [{ type: core_1.Input, args: ['date-only',] },],
         'timeOnly': [{ type: core_1.Input, args: ['time-only',] },],
         'closeOnSelect': [{ type: core_1.Input, args: ['close-on-select',] },],
-        'firstDayOfWeek': [{ type: core_1.Input, args: ['first-day-of-week',] },],
         'defaultValue': [{ type: core_1.Input, args: ['default-value',] },],
         'minuteStep': [{ type: core_1.Input, args: ['minute-step',] },],
         'minDate': [{ type: core_1.Input, args: ['min-date',] },],
@@ -294,6 +282,7 @@ var Ng2DatetimePickerDirective = (function () {
         'formControlName': [{ type: core_1.Input },],
         'ngModel': [{ type: core_1.Input, args: ['ngModel',] },],
         'ngModelChange': [{ type: core_1.Output, args: ['ngModelChange',] },],
+        'valueChanged': [{ type: core_1.Output, args: ['valueChanged',] },],
     };
     return Ng2DatetimePickerDirective;
 }());

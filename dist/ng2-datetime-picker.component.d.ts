@@ -6,21 +6,21 @@ import { Ng2Datetime } from './ng2-datetime';
 export declare class Ng2DatetimePickerComponent implements AfterViewInit {
     ng2Datetime: Ng2Datetime;
     cdRef: ChangeDetectorRef;
+    dateFormat: string;
     dateOnly: boolean;
     timeOnly: boolean;
     selectedDate: Date;
     hour: number;
     minute: number;
     minuteStep: number;
-    firstDayOfWeek: string;
     defaultValue: Date;
     minDate: Date;
     maxDate: Date;
     minHour: number;
     maxHour: number;
     disabledDates: Date[];
-    changes: EventEmitter<any>;
-    closing: EventEmitter<any>;
+    selected$: EventEmitter<any>;
+    closing$: EventEmitter<any>;
     hours: ElementRef;
     minutes: ElementRef;
     el: HTMLElement;
@@ -32,14 +32,15 @@ export declare class Ng2DatetimePickerComponent implements AfterViewInit {
     month: number;
     day: number;
     today: Date;
-    initDatetime(date: Date): void;
+    isWeekend(dayNum: number, month?: number): boolean;
+    ngOnInit(): void;
     toDate(day: number, month?: number): Date;
     toDateOnly(date: Date): Date;
     /**
      * set the selected date and close it when closeOnSelect is true
      * @param date {Date}
      */
-    selectDate(date?: Date): boolean;
+    selectDateTime(date?: Date): boolean;
     /**
      * show prev/next month calendar
      */

@@ -11,6 +11,8 @@ import {
 } from '@angular/core';
 import {Ng2Datetime} from './ng2-datetime';
 
+declare var moment: any;
+
 //@TODO
 // . display currently selected day
 
@@ -27,8 +29,8 @@ import {Ng2Datetime} from './ng2-datetime';
   <div class="month" *ngIf="!timeOnly">
     <b class="prev_next prev" (click)="updateMonthData(-12)">&laquo;</b>
     <b class="prev_next prev" (click)="updateMonthData(-1)">&lsaquo;</b>
-     <span title="{{ng2Datetime.months[monthData.month]?.fullName}}">
-           {{ng2Datetime.months[monthData.month]?.shortName}}
+     <span title="{{monthData?.fullName}}">
+           {{monthData?.shortName}}
      </span>
     {{monthData.year}}
     <b class="prev_next next" (click)="updateMonthData(+12)">&raquo;</b>
@@ -40,32 +42,28 @@ import {Ng2Datetime} from './ng2-datetime';
 
     <!-- Su Mo Tu We Th Fr Sa -->
     <div class="day-of-week"
-         *ngFor="let dayOfWeek of ng2Datetime.localizedDaysOfWeek"
-         [ngClass]="{weekend: dayOfWeek.weekend}"
+         *ngFor="let dayOfWeek of monthData.localizedDaysOfWeek; let ndx=index"
+         [class.weekend]="isWeekend(ndx + monthData.firstDayOfWeek)"
          title="{{dayOfWeek.fullName}}">
       {{dayOfWeek.shortName}}
     </div>
 
     <!-- Fill up blank days for this month -->
     <div *ngIf="monthData.leadingDays.length < 7">
-      <div class="day" *ngFor="let dayNum of monthData.leadingDays"
-           [ngClass]="{weekend: [0,6].indexOf(toDate(dayNum, monthData.month-1).getDay()) !== -1}">
+      <div class="day" *ngFor="let dayNum of monthData.leadingDays">
         {{dayNum}}
       </div>
     </div>
 
     <div class="day"
          *ngFor="let dayNum of monthData.days"
-         (click)="selectDate(toDate(dayNum))"
+         (click)="selectDateTime(toDate(dayNum))"
          title="{{monthData.year}}-{{monthData.month+1}}-{{dayNum}}"
          [ngClass]="{
            selectable: !isDateDisabled(toDate(dayNum)),
-           selected:
-             toDate(dayNum).getTime() === toDateOnly(selectedDate).getTime(),
-           today:
-             toDate(dayNum).getTime() === today.getTime(),
-           weekend:
-             [0,6].indexOf(toDate(dayNum).getDay()) !== -1
+           selected: toDate(dayNum).getTime() === toDateOnly(selectedDate).getTime(),
+           today: toDate(dayNum).getTime() === today.getTime(),
+           weekend: isWeekend(dayNum, monthData.month)
          }">
       {{dayNum}}
     </div>
@@ -73,22 +71,21 @@ import {Ng2Datetime} from './ng2-datetime';
     <!-- Fill up blank days for this month -->
     <div *ngIf="monthData.trailingDays.length < 7">
       <div class="day"
-           *ngFor="let dayNum of monthData.trailingDays"
-           [ngClass]="{weekend: [0,6].indexOf(toDate(dayNum, monthData.month+1).getDay()) !== -1}">
+           *ngFor="let dayNum of monthData.trailingDays">
         {{dayNum}}
       </div>
     </div>
   </div>
 
   <!-- Time -->
-  <div class="days" id="time" *ngIf="!dateOnly">
+  <div class="time" id="time" *ngIf="!dateOnly">
     <label class="timeLabel">Time:</label>
     <span class="timeValue">
       {{("0"+hour).slice(-2)}} : {{("0"+minute).slice(-2)}}
     </span><br/>
     <label class="hourLabel">Hour:</label>
     <input #hours class="hourInput"
-           (change)="selectDate()"
+           (change)="selectDateTime()"
            type="range"
            min="{{minHour || 0}}"
            max="{{maxHour || 23}}"
@@ -96,7 +93,7 @@ import {Ng2Datetime} from './ng2-datetime';
     <label class="minutesLabel">Min:</label>
     <input #minutes class="minutesInput"
            step="{{minuteStep}}"
-           (change)="selectDate()"
+           (change)="selectDateTime()"
            type="range" min="0" max="59" range="10" [(ngModel)]="minute"/>
   </div>
 </div>
@@ -216,13 +213,13 @@ import {Ng2Datetime} from './ng2-datetime';
   encapsulation: ViewEncapsulation.None
 })
 export class Ng2DatetimePickerComponent implements AfterViewInit {
+  @Input('date-format')       dateFormat: string;
   @Input('date-only')         dateOnly: boolean;
   @Input('time-only')         timeOnly: boolean;
   @Input('selected-date')     selectedDate: Date;
   @Input('hour')              hour: number;
   @Input('minute')            minute: number;
   @Input('minuteStep')        minuteStep: number = 1;
-  @Input('first-day-of-week') firstDayOfWeek: string;
   @Input('default-value')     defaultValue: Date;
   @Input('min-date')          minDate: Date;
   @Input('max-date')          maxDate: Date;
@@ -230,8 +227,8 @@ export class Ng2DatetimePickerComponent implements AfterViewInit {
   @Input('max-hour')          maxHour: number;
   @Input('disabled-dates')    disabledDates: Date[];
 
-  @Output('changes')   changes:EventEmitter<any> = new EventEmitter();
-  @Output('closing')   closing:EventEmitter<any> = new EventEmitter();
+  @Output('selected$')  selected$:EventEmitter<any> = new EventEmitter();
+  @Output('closing$')   closing$:EventEmitter<any> = new EventEmitter();
 
   @ViewChild('hours')   hours:ElementRef;
   @ViewChild('minutes') minutes:ElementRef;
@@ -278,16 +275,35 @@ export class Ng2DatetimePickerComponent implements AfterViewInit {
     dt.setMilliseconds(0);
     return dt;
   }
-  
+
+  public isWeekend(dayNum: number, month?: number): boolean {
+    if (typeof month === 'undefined') {
+      return Ng2Datetime.weekends.indexOf(dayNum % 7) !== -1; //weekday index
+    } else {
+      let weekday = this.toDate(dayNum, month).getDay();
+      return Ng2Datetime.weekends.indexOf(weekday) !== -1;
+    }
+  }
+
   public set year (year) {}
   public set month (month) {}
   public set day (day) {}
   public set today (today) {}
 
-  public initDatetime (date:Date) {
-    this.selectedDate = date || this.defaultValue || new Date();
-    this.hour         = this.selectedDate.getHours();
-    this.minute       = this.selectedDate.getMinutes();
+
+  public ngOnInit() {
+    this.selectedDate = this.defaultValue || new Date();
+
+    // set hour and minute using moment if available to avoid having Javascript change timezones
+    if (typeof moment === 'undefined') {
+      this.hour         = this.selectedDate.getHours();
+      this.minute       = this.selectedDate.getMinutes();
+    } else {
+      let m = moment(this.selectedDate);
+      this.hour = m.hours();
+      this.minute = m.minute();
+    }
+
     this.monthData    = this.ng2Datetime.getMonthData(this.year, this.month);
   }
 
@@ -303,15 +319,36 @@ export class Ng2DatetimePickerComponent implements AfterViewInit {
    * set the selected date and close it when closeOnSelect is true
    * @param date {Date}
    */
-  public selectDate(date?: Date) {
+  public selectDateTime(date?: Date) {
     this.selectedDate = date || this.selectedDate;
     if (this.isDateDisabled(this.selectedDate)) {
       return false;
     }
-    this.selectedDate.setHours(parseInt( ''+this.hour || '0', 10));
-    this.selectedDate.setMinutes(parseInt( ''+this.minute|| '0', 10));
-    this.changes.emit(this.selectedDate);
-    this.closing.emit(true);
+
+    // editing hours and minutes via javascript date methods causes date to lose timezone info,
+    // so edit using moment if available
+    let hour = parseInt( '' + this.hour || '0', 10);
+    let minute = parseInt( '' + this.minute || '0', 10);
+
+    if (typeof moment !== 'undefined') {
+      // here selected date has a time of 00:00 in local time,
+      // so build moment by getting year/month/day separately
+      // to avoid it saving as a day earlier
+      let m = moment([this.selectedDate.getFullYear(), this.selectedDate.getMonth(), this.selectedDate.getDate()]);
+      m.hours(hour);
+      m.minutes(minute);
+      this.selectedDate = m.toDate();
+    } else {
+      this.selectedDate.setHours(hour);
+      this.selectedDate.setMinutes(minute);
+    }
+    console.log('this.selectedDate', this.selectedDate)
+
+    this.selectedDate.toString = () => {
+      return Ng2Datetime.formatDate(this.selectedDate, this.dateFormat, this.dateOnly);
+    };
+    this.selected$.emit(this.selectedDate);
+    this.closing$.emit(true);
   };
 
   /**

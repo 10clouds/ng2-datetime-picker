@@ -1,5 +1,6 @@
 # ng2-datetime-picker
 
+[![Build Status](https://travis-ci.org/ng2-ui/ng2-datetime-picker.svg?branch=master)](https://travis-ci.org/ng2-ui/ng2-datetime-picker)
 [![Join the chat at https://gitter.im/ng2-ui/ng2-datetime-picker](https://badges.gitter.im/ng2-ui/ng2-datetime-picker.svg)](https://gitter.im/ng2-ui/ng2-datetime-picker?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 AngularJS 2 DateTime Picker
 
@@ -45,7 +46,7 @@ AngularJS 2 DateTime Picker
         })
         export class AppModule { }
 
-## Usage it in your code
+## Use it in your code
 
         
        <input
@@ -74,38 +75,52 @@ AngularJS 2 DateTime Picker
           
 For full example, please check `test` directory to see the example of;
 
-  - `systemjs.config.js`
   - `app.module.ts`
   -  and `app.component.ts`.
 
 ## Override default style
 
 The default style is written in `src/ng2-datetime-picker.component.ts`. 
-This can be overwritten by giving more details css seletor.
+This can be overwritten by giving a more detailed css selector.
  
 e.g., 
 
     #my-div .ng2-datetime-picker {
       background-color: blue;
     }
+    
 ## Override built-in date parser and date formatter
 
-The default date parser and formatter can only handle 'YYYY-MM-DD HH:MM' format if you are not using momentjs.
-If you use momentjs, you can use momentjs dateformat by adding the following in your html.
+The default date parser and formatter can only handle 'YYYY-MM-DD HH:MM' format
+if you are not using [momentjs](http://momentjs.com/). If you use momentjs, you 
+can use momentjs dateformat by adding the following in your html.
 
     <script src="moment-with-locales.min.js"></script>
+    
+If you are using moment and want to pass in a string date value in one format but display it in a different format
+you can use both date-format and parse-format:
+    
+    <input 
+          [(ngModel)]="date" 
+          ng2-datetime-picker
+          date-format="MM/DD/YYYY HH:mm"
+          parse-format="YYYY-MM-DD HH:mm:ss" />
 
-If you want to have your dateformat without using momentjs, 
+If you want to have your own date format without using momentjs, 
 please override `Ng2DateTime.parser` and `Ng2DateTime.formatDate` function.
 For example, 
 
-    import { Ng2DatetimePickerModule, Ng2DateTime } from 'ng2-datetime-picker';
+    import { Ng2DatetimePickerModule, Ng2Datetime } from 'ng2-datetime-picker';
 
     // Override Date object formatter
-    Ng2DateTime.formatDate = (date: Date) : string => { ..... my own function .... };
+    Ng2Datetime.formatDate = (date: Date) : string => { 
+        ..... my own function that returns a string .... 
+    };
 
     // Override Date object parser
-    Ng2DateTime.parse = (str: any): Date => { .... my own function ... } ;
+    Ng2Datetime.parseDate = (str: any): Date => { 
+        .... my own function that returns a date ...
+    } ;
 
     @NgModule({
       imports: [BrowserModule, FormsModule, Ng2DatetimePickerModule],
@@ -113,6 +128,17 @@ For example,
       bootstrap: [ AppComponent ]
     })
     export class AppModule { }
+
+In addition, you can override other static variables of `Ng2Datetime` class. The following
+is the list of variables that you can override.
+  
+  * **days**:            default: 1,2,....31           
+  * **daysOfWeek**:      default: Sunday, Monday, .....
+  * **weekends**:        default: 0,6
+  * **firstDayOfWeek**:  default: 0 as in Sunday
+  * **months**:          default: January, February
+  * **formatDate**:      default: returns YYYY-MM-DD HH:MM
+  * **parseDate**:       default: returns date from YYYY-MM-DD HH:MM
 
 ## **ng2-ui** welcomes new members and contributors
 
@@ -138,14 +164,21 @@ please send me email to `allenhwkim AT gmail.com` with your github id.
   All options are optional except value
 
   * **date-only**,  true or false, default is false
-  * **close-on-select**, true or false. indicates to close ng2-datetime-picker when select a date. default: true
   * **time-only**, true or false, default is false 
-  * **first-day-of-week** start day of week, 0 is sunday
-  * **date-format**,  momentjs date format, e.g. YYYY-MM-DD hh:mm:ss
+  * **close-on-select**, true or false. indicates to close ng2-datetime-picker when select a date. default: true
+  * **date-format**,  momentjs date format, e.g. YYYY-MM-DD hh:mm:ss.
     You need to include `moment` js in your html to use date-format.
-    
     `<script src="moment.min.js"></script>`
-
+  * **parse-format**,  momentjs date format used to parse a string input value, e.g. YYYY-MM-DD hh:mm:ss.
+    You need to include `moment` js in your html to use parse-format.
+    `<script src="moment.min.js"></script>`
+  * **default-value** a date selected when a popup opens, default the current date
+  * **minute-step** the interval of minutes, default 1
+  * **min-date** Date, mininum selectable date
+  * **max-date** Date, maximum selectable date
+  * **min-hour** number, mininum selectable hour
+  * **max-hour** number, maximum selectable hour
+  * **disabled-dates**  Array of Date, dates not selectable
      
 ## For Developers
 
