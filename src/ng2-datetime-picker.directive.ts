@@ -136,7 +136,9 @@ export class Ng2DatetimePickerDirective implements OnInit, OnChanges {
     document.body.addEventListener('click', this.hideDatetimePicker);
     this.el.addEventListener('keyup', this.keyEventListener);
     if (this.ngModel && this.ngModel.getTime) { // if it is a Date object given, set dateValue and toString method
-      this.ngModel.toString = () => Ng2Datetime.formatDate(this.ngModel, this.dateFormat, this.dateOnly);
+      // line below breaks datepicker time select
+      //this.ngModel.toString = () => Ng2Datetime.formatDate(this.ngModel, this.dateFormat, this.dateOnly);
+      this.ngModel = this.el.value;
     }
     setTimeout( () => { // after [(ngModel)] is applied
       if (this.el.tagName === 'INPUT') {
